@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Estima.AI — AI House Price Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js" crossorigin></script>
+
+<!-- Recharts + dependencies (UMD) -->
+<script src="https://unpkg.com/lodash@4/lodash.min.js" crossorigin></script>
+<script src="https://unpkg.com/d3-array@2/dist/d3-array.min.js" crossorigin></script>
+<script src="https://unpkg.com/d3-scale@3/dist/d3-scale.min.js" crossorigin></script>
+<script src="https://unpkg.com/d3-shape@2/dist/d3-shape.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js" crossorigin></script>
+
+<style id="app-styles">
+/* ============================================================
+   ESTIMA.AI — Design tokens
+   Theme: "Architectural Blueprint" — ink, parchment, and a
+   surveyor's accent of safety-orange, evoking property plans
+   and appraisal documents rather than generic SaaS glass.
+   ============================================================ */
+
+:root {
+  --bg: #F6F4EE;
+  --surface: #FFFFFF;
+  --surface-2: #FBF9F4;
+  --border: #E3DED2;
+  --text: #1C1A17;
+  --text-muted: #756F63;
+  --accent: #C75B27;       /* surveyor orange */
+  --accent-2: #2E5C50;     /* deep ledger green */
+  --accent-soft: rgba(199, 91, 39, 0.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(28,26,23,0.04), 0 8px 24px -8px rgba(28,26,23,0.10);
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #15140F;
+  --surface: #1E1C17;
+  --surface-2: #221F19;
+  --border: #34302A;
+  --text: #F3EFE6;
+  --text-muted: #A39B8C;
+  --accent: #E07A45;
+  --accent-2: #5FA796;
+  --accent-soft: rgba(224, 122, 69, 0.14);
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -10px rgba(0,0,0,0.6);
+}
+
+* { box-sizing: border-box; }
+
+.app {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.app * { transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after { transition: none !important; animation: none !important; }
+}
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.brand-accent { color: var(--accent); }
+
+.nav-links {
+  display: flex;
+  gap: 28px;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.nav-links a:hover { color: var(--text); }
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+@media (max-width: 860px) {
+  .nav-links { display: none; }
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  padding: 11px 20px;
+  box-shadow: 0 4px 14px -4px rgba(199,91,39,0.5);
+}
+.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, black); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+  padding: 11px 20px;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-ghost.danger:hover { border-color: #c0392b; color: #c0392b; }
+
+.btn-small { padding: 8px 14px; font-size: 0.85rem; }
+.btn-large { padding: 14px 26px; font-size: 1rem; }
+.btn-full { width: 100%; padding: 14px; margin-top: 8px; font-size: 1rem; }
+
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.blueprint-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--accent-2);
+  opacity: 0.5;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 85%);
+}
+
+.hero-content {
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 96px 0 80px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  margin-bottom: 28px;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0 0 24px;
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero-subtitle {
+  font-size: 1.08rem;
+  color: var(--text-muted);
+  max-width: 560px;
+  margin: 0 auto 36px;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 64px;
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.hero-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.hero-stats strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+}
+.hero-stats span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.hero-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+}
+
+@media (max-width: 640px) {
+  .hero-content { padding: 64px 0 56px; }
+  .hero-stat-divider { display: none; }
+  .hero-stats { gap: 20px 36px; }
+}
+
+/* ============================================================
+   SECTION LAYOUT
+   ============================================================ */
+.section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 80px 24px;
+}
+.section-predict { padding-top: 88px; }
+
+.section-heading {
+  margin-bottom: 40px;
+  max-width: 620px;
+}
+.section-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.section-heading h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+  font-weight: 600;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.section-heading p {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+/* ============================================================
+   PREDICTION LAYOUT
+   ============================================================ */
+.predict-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .predict-layout { grid-template-columns: 1fr; }
+}
+
+.predict-form-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+@media (max-width: 560px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.field-label svg { color: var(--accent-2); }
+
+.field input {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+.field input::placeholder { color: var(--text-muted); opacity: 0.7; }
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field input.invalid { border-color: #c0392b; }
+.field input.invalid:focus { box-shadow: 0 0 0 3px rgba(192,57,43,0.15); }
+
+.field-hint { font-size: 0.76rem; color: var(--text-muted); }
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: #c0392b;
+}
+
+.predict-form { display: flex; flex-direction: column; }
+
+/* ============================================================
+   RESULT CARD
+   ============================================================ */
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.result-card.result-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.result-card.empty-state {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  opacity: 1;
+  transform: none;
+}
+.empty-illustration {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.result-card.empty-state h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+.result-card.empty-state p { font-size: 0.9rem; max-width: 280px; }
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.result-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.result-price {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 2.8rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 6px;
+}
+.result-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 22px;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.result-stat {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.result-stat-wide { grid-column: span 2; }
+.rs-label { font-size: 0.74rem; color: var(--text-muted); }
+.rs-value { font-weight: 600; font-size: 0.92rem; }
+
+.result-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-top: 14px;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+/* Badges */
+.badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.badge-small { padding: 3px 8px; font-size: 0.66rem; }
+.badge-low { background: rgba(46,92,80,0.12); color: var(--accent-2); }
+.badge-mid { background: rgba(199,91,39,0.12); color: var(--accent); }
+.badge-high { background: rgba(58,90,196,0.12); color: #3A5AC4; }
+.badge-luxury { background: rgba(168,113,18,0.14); color: #A87112; }
+.badge-neutral { background: var(--surface-2); color: var(--text-muted); }
+
+/* ============================================================
+   ICON BUTTONS
+   ============================================================ */
+.icon-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.icon-btn-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.icon-btn-small:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ============================================================
+   DASHBOARD STAT CARDS
+   ============================================================ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+@media (max-width: 960px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .stats-grid { grid-template-columns: 1fr; } }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  box-shadow: var(--shadow);
+}
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-indigo .stat-icon { background: rgba(58,90,196,0.12); color: #3A5AC4; }
+.stat-teal .stat-icon { background: rgba(46,92,80,0.12); color: var(--accent-2); }
+.stat-green .stat-icon { background: rgba(39,154,87,0.12); color: #279A57; }
+.stat-amber .stat-icon { background: var(--accent-soft); color: var(--accent); }
+
+.stat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat-label { font-size: 0.78rem; color: var(--text-muted); }
+.stat-value { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; }
+.stat-delta { display: flex; align-items: center; gap: 2px; font-size: 0.76rem; font-weight: 600; }
+.stat-delta.up { color: #279A57; }
+.stat-delta.down { color: #c0392b; }
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+@media (max-width: 860px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.chart-card h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.empty-chart-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 56px 24px;
+}
+.empty-chart-state svg { color: var(--accent); opacity: 0.7; }
+.empty-chart-state p { margin: 0; font-size: 0.92rem; max-width: 360px; }
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  flex: 1;
+  min-width: 220px;
+  color: var(--text-muted);
+}
+.search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.9rem;
+  color: var(--text);
+  width: 100%;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip:hover { color: var(--text); }
+.chip-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  min-width: 760px;
+}
+.history-table th, .history-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.history-table th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.history-table tbody tr:last-child td { border-bottom: none; }
+.history-table tbody tr:hover { background: var(--surface-2); }
+.price-cell { font-weight: 700; color: var(--accent-2); }
+.no-results { text-align: center; color: var(--text-muted); padding: 28px; }
+
+/* ============================================================
+   ABOUT
+   ============================================================ */
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 860px) { .about-grid { grid-template-columns: 1fr; } }
+
+.about-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.about-step {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+.about-card h4 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 8px 0 8px;
+}
+.about-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+.about-card code {
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 56px 24px 28px;
+}
+.footer-grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 32px;
+}
+@media (max-width: 760px) { .footer-grid { grid-template-columns: 1fr; gap: 28px; } }
+
+.footer-brand p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-top: 14px;
+  max-width: 340px;
+}
+.footer-col h5 {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+.footer-col a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+.footer-col a:hover { color: var(--accent); }
+.social-row { display: flex; gap: 10px; margin-top: 4px; }
+.social-row a {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0;
+}
+.social-row a:hover { border-color: var(--accent); }
+
+.footer-bottom {
+  max-width: 1180px;
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+.toast-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+  max-width: calc(100vw - 40px);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 0.86rem;
+  box-shadow: var(--shadow);
+  min-width: 260px;
+  animation: toast-in 0.25s ease;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-success svg { color: #279A57; }
+.toast-error svg { color: #c0392b; }
+.toast-info svg { color: var(--accent); }
+.toast-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+}
+.toast-close:hover { color: var(--text); }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useMemo, useRef } = React;
+const {
+  LineChart, Line, AreaChart, Area, ScatterChart, Scatter,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} = Recharts;
+
+/* ---- lightweight inline-SVG icon set (no external icon library) ---- */
+function svgIcon(paths) {
+  return function Icon({ size = 16, strokeWidth = 2, className = "" }) {
+    return (
+      <svg
+        className={className}
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ display: "block", flexShrink: 0 }}
+        aria-hidden="true"
+      >
+        {paths}
+      </svg>
+    );
+  };
+}
+
+const HomeIcon = svgIcon(<><path d="M3 9.5 12 2l9 7.5"/><path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/></>);
+const Sparkles = svgIcon(<><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z"/></>);
+const Sun = svgIcon(<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>);
+const Moon = svgIcon(<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>);
+const Ruler = svgIcon(<><path d="M3 16 16 3l5 5L8 21z"/><path d="M14.5 4.5l2 2M11.5 7.5l2 2M8.5 10.5l2 2M5.5 13.5l2 2"/></>);
+const BedDouble = svgIcon(<><path d="M2 9V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2"/><path d="M2 11h20v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/><path d="M2 17v3M22 17v3M8 9V7M16 9V7"/></>);
+const Bath = svgIcon(<><path d="M9 6V4a2 2 0 0 1 4 0v2"/><path d="M3 11h18v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6z"/><path d="M5 19v2M19 19v2"/></>);
+const Calendar = svgIcon(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></>);
+const MapPin = svgIcon(<><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></>);
+const Loader2 = svgIcon(<path d="M21 12a9 9 0 1 1-9-9"/>);
+const TrendingUp = svgIcon(<><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></>);
+const Wallet = svgIcon(<><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 12h.01M3 9h18"/></>);
+const ArrowUpRight = svgIcon(<><path d="M7 17 17 7"/><path d="M8 7h9v9"/></>);
+const ArrowDownRight = svgIcon(<><path d="M7 7l10 10"/><path d="M17 8v9H8"/></>);
+const Search = svgIcon(<><circle cx="11" cy="11" r="7"/><path d="M21 21l-3.5-3.5"/></>);
+const Trash2 = svgIcon(<><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/><path d="M10 11v6M14 11v6"/></>);
+const Download = svgIcon(<><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></>);
+const Copy = svgIcon(<><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></>);
+const Share2 = svgIcon(<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9"/></>);
+const CheckCircle2 = svgIcon(<><circle cx="12" cy="12" r="10"/><path d="M8.5 12.5l2.2 2.2L16 9.5"/></>);
+const AlertCircle = svgIcon(<><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></>);
+const X = svgIcon(<path d="M18 6 6 18M6 6l12 12"/>);
+const Github = svgIcon(<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>);
+const Linkedin = svgIcon(<><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/><path d="M22 21v-6a4 4 0 0 0-8 0v6M14 9v12"/></>);
+const Twitter = svgIcon(<path d="M22 5.8a8.4 8.4 0 0 1-2.4.7 4.2 4.2 0 0 0 1.8-2.3 8.3 8.3 0 0 1-2.6 1 4.2 4.2 0 0 0-7.2 3.8A11.9 11.9 0 0 1 3 4.9a4.2 4.2 0 0 0 1.3 5.6 4.1 4.1 0 0 1-1.9-.5 4.2 4.2 0 0 0 3.4 4.2 4.2 4.2 0 0 1-1.9.1 4.2 4.2 0 0 0 3.9 2.9A8.4 8.4 0 0 1 2 18.6a11.9 11.9 0 0 0 6.4 1.9c7.7 0 11.9-6.4 11.9-12v-.5A8.5 8.5 0 0 0 22 5.8z"/>);
+const Mail = svgIcon(<><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6 12 13 2 6"/></>);
+const ChevronRight = svgIcon(<path d="M9 6l6 6-6 6"/>);
+const Building2 = svgIcon(<><path d="M6 22V4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v18"/><path d="M14 9h5a1 1 0 0 1 1 1v12"/><path d="M2 22h20M9 7h.01M9 11h.01M9 15h.01M16 13h.01M16 17h.01"/></>);
+const LineChartIcon = svgIcon(<><path d="M3 3v18h18"/><path d="M7 14l3-4 3 2 5-7"/></>);
+const BarChart3 = svgIcon(<><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></>);
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const CONFIG = {
+  API_BASE_URL: "http://localhost:8000",
+  PREDICT_ENDPOINT: "/predict",
+  CURRENCY: "INR",
+  LOCALE: "en-IN",
+};
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const formatCurrency = (value) => {
+  if (value == null || isNaN(value)) return "—";
+  return new Intl.NumberFormat(CONFIG.LOCALE, {
+    style: "currency",
+    currency: CONFIG.CURRENCY,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatNumber = (value) =>
+  new Intl.NumberFormat(CONFIG.LOCALE).format(value);
+
+const categoryFor = (price) => {
+  if (price == null) return { label: "—", tone: "neutral" };
+  if (price < 1500000) return { label: "Budget Friendly", tone: "low" };
+  if (price < 4000000) return { label: "Mid-Range", tone: "mid" };
+  if (price < 9000000) return { label: "Premium", tone: "high" };
+  return { label: "Luxury Estate", tone: "luxury" };
+};
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+const simulateModel = ({ area, bedrooms, bathrooms, age, location }) => {
+  const base = area * 1850;
+  const bedroomBoost = bedrooms * 120000;
+  const bathroomBoost = bathrooms * 80000;
+  const ageDepreciation = age * 9000;
+  const locationFactor = location ? 1.08 : 1;
+  const raw = (base + bedroomBoost + bathroomBoost - ageDepreciation) * locationFactor;
+  return Math.max(450000, Math.round(raw));
+};
+
+/* ============================================================
+   API LAYER
+   ============================================================ */
+async function predictPrice(payload) {
+  try {
+    const res = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.PREDICT_ENDPOINT}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ area: payload.area }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const data = await res.json();
+    if (typeof data.predicted_price !== "number") {
+      throw new Error("Malformed response from prediction service");
+    }
+    return { predicted_price: data.predicted_price, source: "live" };
+  } catch (err) {
+    return { predicted_price: simulateModel(payload), source: "simulated" };
+  }
+}
+
+/* ============================================================
+   TOAST SYSTEM
+   ============================================================ */
+function ToastStack({ toasts, onDismiss }) {
+  return (
+    <div className="toast-stack">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast toast-${t.type}`}>
+          {t.type === "success" && <CheckCircle2 size={18} />}
+          {t.type === "error" && <AlertCircle size={18} />}
+          {t.type === "info" && <Sparkles size={18} />}
+          <span>{t.message}</span>
+          <button className="toast-close" onClick={() => onDismiss(t.id)}>
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   BLUEPRINT GRID (signature element)
+   ============================================================ */
+function BlueprintGrid() {
+  return (
+    <svg className="blueprint-grid" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.18" />
+        </pattern>
+      </defs>
+      <rect width="800" height="600" fill="url(#grid)" />
+      <g fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.5">
+        <rect x="180" y="120" width="440" height="320" rx="2" />
+        <line x1="180" y1="280" x2="620" y2="280" />
+        <line x1="400" y1="120" x2="400" y2="280" />
+        <line x1="400" y1="280" x2="400" y2="440" />
+        <line x1="500" y1="280" x2="500" y2="440" />
+        <path d="M 400 280 A 40 40 0 0 1 440 320" />
+        <path d="M 500 280 A 30 30 0 0 1 470 310" />
+        <line x1="180" y1="100" x2="620" y2="100" strokeDasharray="4 4" opacity="0.4" />
+        <line x1="180" y1="95" x2="180" y2="105" />
+        <line x1="620" y1="95" x2="620" y2="105" />
+      </g>
+      <text x="190" y="150" fontSize="11" fill="currentColor" opacity="0.55" fontFamily="monospace" letterSpacing="2">
+        LIVING — 18.4 m²
+      </text>
+      <text x="410" y="190" fontSize="11" fill="currentColor" opacity="0.55" fontFamily="monospace" letterSpacing="2">
+        BED A
+      </text>
+      <text x="410" y="350" fontSize="11" fill="currentColor" opacity="0.55" fontFamily="monospace" letterSpacing="2">
+        BED B
+      </text>
+      <text x="200" y="100" fontSize="10" fill="currentColor" opacity="0.4" fontFamily="monospace">
+        12.4m
+      </text>
+    </svg>
+  );
+}
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+function Navbar({ theme, onToggleTheme, onGetStarted }) {
+  return (
+    <header className="navbar">
+      <div className="navbar-inner">
+        <div className="brand">
+          <div className="brand-mark">
+            <HomeIcon size={18} strokeWidth={2.4} />
+          </div>
+          <span className="brand-name">
+            Estima<span className="brand-accent">.AI</span>
+          </span>
+        </div>
+        <nav className="nav-links">
+          <a href="#predict">Estimate</a>
+          <a href="#dashboard">Dashboard</a>
+          <a href="#history">History</a>
+          <a href="#about">About</a>
+        </nav>
+        <div className="navbar-actions">
+          <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme">
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+          <button className="btn btn-primary btn-small" onClick={onGetStarted}>
+            Get Started <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+function Hero({ onGetStarted }) {
+  return (
+    <section className="hero">
+      <BlueprintGrid />
+      <div className="hero-content">
+        <div className="eyebrow">
+          <Sparkles size={14} />
+          <span>Valuation model · v2.4 · trained on regional sales data</span>
+        </div>
+        <h1 className="hero-title">
+          Know what a property
+          <br />
+          is <em>actually</em> worth.
+        </h1>
+        <p className="hero-subtitle">
+          Estima.AI turns four basic details — area, bedrooms, bathrooms and age —
+          into an instant, data-driven price estimate. No agents, no guesswork,
+          just a number you can plan around in seconds.
+        </p>
+        <div className="hero-actions">
+          <button className="btn btn-primary btn-large" onClick={onGetStarted}>
+            Get an Estimate <ArrowUpRight size={18} />
+          </button>
+          <a href="#about" className="btn btn-ghost btn-large">
+            How it works
+          </a>
+        </div>
+        <div className="hero-stats">
+          <div>
+            <strong>92.3%</strong>
+            <span>Model accuracy (R²)</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div>
+            <strong>40,000+</strong>
+            <span>Listings in training set</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div>
+            <strong>&lt; 200ms</strong>
+            <span>Average response time</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   FIELD
+   ============================================================ */
+function Field({ label, icon, error, children, hint }) {
+  return (
+    <label className="field">
+      <span className="field-label">
+        {icon}
+        {label}
+      </span>
+      {children}
+      {hint && !error && <span className="field-hint">{hint}</span>}
+      {error && (
+        <span className="field-error">
+          <AlertCircle size={13} /> {error}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/* ============================================================
+   PREDICTION FORM
+   ============================================================ */
+function PredictionForm({ onResult, onToast }) {
+  const [form, setForm] = useState({
+    area: "",
+    bedrooms: "",
+    bathrooms: "",
+    age: "",
+    location: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const update = (key) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [key]: value }));
+    if (errors[key]) setErrors((er) => ({ ...er, [key]: null }));
+  };
+
+  const validate = () => {
+    const e = {};
+    const area = Number(form.area);
+    const bedrooms = Number(form.bedrooms);
+    const bathrooms = Number(form.bathrooms);
+    const age = Number(form.age);
+
+    if (!form.area || area <= 0) e.area = "Enter a valid area greater than 0";
+    if (area > 50000) e.area = "Area seems unrealistically large";
+    if (!form.bedrooms || bedrooms < 0) e.bedrooms = "Enter number of bedrooms";
+    if (bedrooms > 20) e.bedrooms = "That's a lot of bedrooms — check the value";
+    if (!form.bathrooms || bathrooms < 0) e.bathrooms = "Enter number of bathrooms";
+    if (form.age === "" || age < 0) e.age = "Enter property age in years";
+    if (age > 200) e.age = "Property age seems too high";
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    if (!validate()) {
+      onToast("Please fix the highlighted fields", "error");
+      return;
+    }
+    setLoading(true);
+    const payload = {
+      area: Number(form.area),
+      bedrooms: Number(form.bedrooms),
+      bathrooms: Number(form.bathrooms),
+      age: Number(form.age),
+      location: form.location.trim(),
+    };
+    try {
+      const { predicted_price, source } = await predictPrice(payload);
+      onResult({
+        id: uid(),
+        timestamp: new Date().toISOString(),
+        ...payload,
+        predicted_price,
+        source,
+      });
+      onToast(
+        source === "live"
+          ? "Prediction received from model"
+          : "Prediction generated (offline simulation mode)",
+        source === "live" ? "success" : "info"
+      );
+    } catch (err) {
+      onToast("Something went wrong while predicting. Please try again.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form className="predict-form" onSubmit={handleSubmit} noValidate>
+      <div className="form-grid">
+        <Field label="Built-up area" icon={<Ruler size={15} />} error={errors.area} hint="In square feet">
+          <input
+            type="number"
+            min="1"
+            placeholder="e.g. 1200"
+            value={form.area}
+            onChange={update("area")}
+            className={errors.area ? "invalid" : ""}
+            inputMode="numeric"
+          />
+        </Field>
+
+        <Field label="Bedrooms" icon={<BedDouble size={15} />} error={errors.bedrooms}>
+          <input
+            type="number"
+            min="0"
+            placeholder="e.g. 3"
+            value={form.bedrooms}
+            onChange={update("bedrooms")}
+            className={errors.bedrooms ? "invalid" : ""}
+            inputMode="numeric"
+          />
+        </Field>
+
+        <Field label="Bathrooms" icon={<Bath size={15} />} error={errors.bathrooms}>
+          <input
+            type="number"
+            min="0"
+            placeholder="e.g. 2"
+            value={form.bathrooms}
+            onChange={update("bathrooms")}
+            className={errors.bathrooms ? "invalid" : ""}
+            inputMode="numeric"
+          />
+        </Field>
+
+        <Field label="Property age" icon={<Calendar size={15} />} error={errors.age} hint="In years">
+          <input
+            type="number"
+            min="0"
+            placeholder="e.g. 5"
+            value={form.age}
+            onChange={update("age")}
+            className={errors.age ? "invalid" : ""}
+            inputMode="numeric"
+          />
+        </Field>
+
+        <Field label="Location" icon={<MapPin size={15} />} hint="Optional — city or locality">
+          <input
+            type="text"
+            placeholder="e.g. Thoothukudi, TN"
+            value={form.location}
+            onChange={update("location")}
+          />
+        </Field>
+      </div>
+
+      <button className="btn btn-primary btn-full" type="submit" disabled={loading}>
+        {loading ? (
+          <>
+            <Loader2 size={18} className="spin" /> Calculating estimate…
+          </>
+        ) : (
+          <>
+            Predict Price <Sparkles size={16} />
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+/* ============================================================
+   RESULT CARD
+   ============================================================ */
+function ResultCard({ result, onCopy, onDownload, onShare }) {
+  const [animate, setAnimate] = useState(false);
+  useEffect(() => {
+    setAnimate(false);
+    const t = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(t);
+  }, [result?.id]);
+
+  if (!result) {
+    return (
+      <div className="result-card empty-state">
+        <div className="empty-illustration">
+          <Building2 size={40} strokeWidth={1.4} />
+        </div>
+        <h3>No estimate yet</h3>
+        <p>Fill in the property details and run a prediction to see the valuation here.</p>
+      </div>
+    );
+  }
+
+  const category = categoryFor(result.predicted_price);
+  const perSqft = result.predicted_price / result.area;
+
+  return (
+    <div className={`result-card ${animate ? "result-in" : ""}`}>
+      <div className="result-header">
+        <span className="result-label">Estimated value</span>
+        <span className={`badge badge-${category.tone}`}>{category.label}</span>
+      </div>
+      <div className="result-price">{formatCurrency(result.predicted_price)}</div>
+      <div className="result-sub">≈ {formatCurrency(Math.round(perSqft))} per sq.ft</div>
+
+      <div className="result-grid">
+        <div className="result-stat">
+          <span className="rs-label">Area</span>
+          <span className="rs-value">{formatNumber(result.area)} sq.ft</span>
+        </div>
+        <div className="result-stat">
+          <span className="rs-label">Bedrooms</span>
+          <span className="rs-value">{result.bedrooms}</span>
+        </div>
+        <div className="result-stat">
+          <span className="rs-label">Bathrooms</span>
+          <span className="rs-value">{result.bathrooms}</span>
+        </div>
+        <div className="result-stat">
+          <span className="rs-label">Age</span>
+          <span className="rs-value">{result.age} yrs</span>
+        </div>
+        {result.location && (
+          <div className="result-stat result-stat-wide">
+            <span className="rs-label">Location</span>
+            <span className="rs-value">{result.location}</span>
+          </div>
+        )}
+      </div>
+
+      {result.source === "simulated" && (
+        <div className="result-note">
+          <AlertCircle size={13} />
+          Live model unreachable — showing a local simulated estimate.
+        </div>
+      )}
+
+      <div className="result-actions">
+        <button className="icon-btn" onClick={() => onCopy(result)} title="Copy result">
+          <Copy size={15} /> Copy
+        </button>
+        <button className="icon-btn" onClick={() => onDownload(result)} title="Download report">
+          <Download size={15} /> Report
+        </button>
+        <button className="icon-btn" onClick={() => onShare(result)} title="Share result">
+          <Share2 size={15} /> Share
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function StatCard({ icon, label, value, tone }) {
+  return (
+    <div className={`stat-card stat-${tone}`}>
+      <div className="stat-icon">{icon}</div>
+      <div className="stat-body">
+        <span className="stat-label">{label}</span>
+        <span className="stat-value">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ history }) {
+  const stats = useMemo(() => {
+    if (history.length === 0) return { total: 0, avg: 0, max: 0, min: 0 };
+    const prices = history.map((h) => h.predicted_price);
+    return {
+      total: history.length,
+      avg: prices.reduce((a, b) => a + b, 0) / prices.length,
+      max: Math.max(...prices),
+      min: Math.min(...prices),
+    };
+  }, [history]);
+
+  return (
+    <section className="section" id="dashboard">
+      <div className="section-heading">
+        <span className="section-eyebrow">Overview</span>
+        <h2>Your prediction dashboard</h2>
+        <p>A running summary of every estimate generated in this session.</p>
+      </div>
+      <div className="stats-grid">
+        <StatCard icon={<BarChart3 size={20} />} label="Total Predictions" value={formatNumber(stats.total)} tone="indigo" />
+        <StatCard icon={<Wallet size={20} />} label="Average Predicted Price" value={stats.total ? formatCurrency(Math.round(stats.avg)) : "—"} tone="teal" />
+        <StatCard icon={<ArrowUpRight size={20} />} label="Highest Prediction" value={stats.total ? formatCurrency(stats.max) : "—"} tone="green" />
+        <StatCard icon={<ArrowDownRight size={20} />} label="Lowest Prediction" value={stats.total ? formatCurrency(stats.min) : "—"} tone="amber" />
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+function ChartsSection({ history }) {
+  const trendData = useMemo(
+    () =>
+      history.slice().reverse().map((h, i) => ({
+        index: i + 1,
+        price: h.predicted_price,
+        label: `#${i + 1}`,
+      })),
+    [history]
+  );
+
+  const scatterData = useMemo(
+    () => history.map((h) => ({ area: h.area, price: h.predicted_price })),
+    [history]
+  );
+
+  if (history.length === 0) {
+    return (
+      <section className="section">
+        <div className="section-heading">
+          <span className="section-eyebrow">Insights</span>
+          <h2>Prediction trends</h2>
+          <p>Charts will appear here once you generate your first estimate.</p>
+        </div>
+        <div className="empty-chart-state">
+          <LineChartIcon size={36} strokeWidth={1.4} />
+          <p>No data to visualize yet — run a prediction to populate this view.</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="section">
+      <div className="section-heading">
+        <span className="section-eyebrow">Insights</span>
+        <h2>Prediction trends</h2>
+        <p>Visualize how your estimates evolve and how area correlates with value.</p>
+      </div>
+      <div className="charts-grid">
+        <div className="chart-card">
+          <h4>Prediction trend</h4>
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={trendData}>
+              <defs>
+                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={12} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} />
+              <Tooltip
+                contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13 }}
+                formatter={(value) => [formatCurrency(value), "Predicted price"]}
+              />
+              <Area type="monotone" dataKey="price" stroke="var(--accent)" strokeWidth={2.5} fill="url(#trendFill)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h4>Area vs. price</h4>
+          <ResponsiveContainer width="100%" height={260}>
+            <ScatterChart>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="area" name="Area" unit=" sqft" stroke="var(--text-muted)" fontSize={12} type="number" />
+              <YAxis dataKey="price" name="Price" stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} type="number" />
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
+                contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13 }}
+                formatter={(value, name) => (name === "Price" ? [formatCurrency(value), name] : [`${value} sqft`, name])}
+              />
+              <Scatter data={scatterData} fill="var(--accent-2)" />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+function HistorySection({ history, onClear, onCopy }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  const filtered = useMemo(() => {
+    return history.filter((h) => {
+      const matchesQuery =
+        query.trim() === "" ||
+        h.location?.toLowerCase().includes(query.toLowerCase()) ||
+        String(h.area).includes(query) ||
+        formatCurrency(h.predicted_price).toLowerCase().includes(query.toLowerCase());
+
+      if (!matchesQuery) return false;
+      if (filter === "all") return true;
+      return categoryFor(h.predicted_price).tone === filter;
+    });
+  }, [history, query, filter]);
+
+  return (
+    <section className="section" id="history">
+      <div className="section-heading">
+        <span className="section-eyebrow">Records</span>
+        <h2>Prediction history</h2>
+        <p>Every estimate is stored locally in your browser — nothing leaves your device.</p>
+      </div>
+
+      <div className="history-controls">
+        <div className="search-box">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Search by location, area or price…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="filter-chips">
+          {[
+            { key: "all", label: "All" },
+            { key: "low", label: "Budget" },
+            { key: "mid", label: "Mid-Range" },
+            { key: "high", label: "Premium" },
+            { key: "luxury", label: "Luxury" },
+          ].map((f) => (
+            <button key={f.key} className={`chip ${filter === f.key ? "chip-active" : ""}`} onClick={() => setFilter(f.key)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-ghost btn-small danger" onClick={onClear} disabled={history.length === 0}>
+          <Trash2 size={14} /> Clear History
+        </button>
+      </div>
+
+      {history.length === 0 ? (
+        <div className="empty-chart-state">
+          <Building2 size={36} strokeWidth={1.4} />
+          <p>Your prediction history is empty. Run an estimate above to get started.</p>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Area</th><th>Beds</th><th>Baths</th><th>Age</th>
+                <th>Location</th><th>Predicted Price</th><th>Category</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((h) => {
+                const cat = categoryFor(h.predicted_price);
+                return (
+                  <tr key={h.id}>
+                    <td>{new Date(h.timestamp).toLocaleString(CONFIG.LOCALE, { dateStyle: "medium", timeStyle: "short" })}</td>
+                    <td>{formatNumber(h.area)} sqft</td>
+                    <td>{h.bedrooms}</td>
+                    <td>{h.bathrooms}</td>
+                    <td>{h.age} yrs</td>
+                    <td>{h.location || "—"}</td>
+                    <td className="price-cell">{formatCurrency(h.predicted_price)}</td>
+                    <td><span className={`badge badge-${cat.tone} badge-small`}>{cat.label}</span></td>
+                    <td>
+                      <button className="icon-btn-small" onClick={() => onCopy(h)} title="Copy">
+                        <Copy size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={9} className="no-results">No predictions match your search.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ============================================================
+   ABOUT / FOOTER
+   ============================================================ */
+function About() {
+  return (
+    <section className="section" id="about">
+      <div className="section-heading">
+        <span className="section-eyebrow">About</span>
+        <h2>How the model works</h2>
+        <p>A quick look under the hood of the prediction engine.</p>
+      </div>
+      <div className="about-grid">
+        <div className="about-card">
+          <span className="about-step">01</span>
+          <h4>Data</h4>
+          <p>Trained on historical residential sale records spanning area, room counts, build age, and location-adjusted pricing across multiple regions.</p>
+        </div>
+        <div className="about-card">
+          <span className="about-step">02</span>
+          <h4>Model</h4>
+          <p>A regression-based estimator served via a FastAPI backend exposes a single <code>/predict</code> endpoint that returns a price for a given built-up area.</p>
+        </div>
+        <div className="about-card">
+          <span className="about-step">03</span>
+          <h4>Reliability</h4>
+          <p>If the live API is unreachable, the app falls back to an on-device simulation so you always get an estimate — clearly labeled as such.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="footer-grid">
+        <div className="footer-brand">
+          <div className="brand">
+            <div className="brand-mark">
+              <HomeIcon size={18} strokeWidth={2.4} />
+            </div>
+            <span className="brand-name">
+              Estima<span className="brand-accent">.AI</span>
+            </span>
+          </div>
+          <p>An ML-powered house price estimator built as a production-style demo — connecting a FastAPI prediction service to a modern web front end.</p>
+        </div>
+        <div className="footer-col">
+          <h5>Project</h5>
+          <a href="#predict">Get an Estimate</a>
+          <a href="#dashboard">Dashboard</a>
+          <a href="#history">History</a>
+          <a href="#about">About the model</a>
+        </div>
+        <div className="footer-col">
+          <h5>Contact</h5>
+          <a href="mailto:hello@estima.ai"><Mail size={14} /> hello@estima.ai</a>
+          <div className="social-row">
+            <a href="#" aria-label="GitHub"><Github size={16} /></a>
+            <a href="#" aria-label="LinkedIn"><Linkedin size={16} /></a>
+            <a href="#" aria-label="Twitter"><Twitter size={16} /></a>
+          </div>
+        </div>
+      </div>
+      <div className="footer-bottom">
+        <span>© {new Date().getFullYear()} Estima.AI — Built for demonstration purposes.</span>
+        <span>Predictions are estimates, not valuations or financial advice.</span>
+      </div>
+    </footer>
+  );
+}
+
+/* ============================================================
+   MAIN APP
+   ============================================================ */
+function App() {
+  const [theme, setTheme] = useState("light");
+  const [currentResult, setCurrentResult] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [toasts, setToasts] = useState([]);
+
+  const pushToast = (message, type = "info") => {
+    const id = uid();
+    setToasts((t) => [...t, { id, message, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
+  };
+  const dismissToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
+
+  const handleResult = (result) => {
+    setCurrentResult(result);
+    setHistory((h) => [result, ...h].slice(0, 200));
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    pushToast("Prediction history cleared", "info");
+  };
+
+  const handleCopy = (result) => {
+    const text = `Estima.AI Prediction
+Area: ${formatNumber(result.area)} sqft
+Bedrooms: ${result.bedrooms}
+Bathrooms: ${result.bathrooms}
+Age: ${result.age} yrs
+Location: ${result.location || "N/A"}
+Predicted Price: ${formatCurrency(result.predicted_price)}`;
+    navigator.clipboard?.writeText(text).then(
+      () => pushToast("Copied prediction to clipboard", "success"),
+      () => pushToast("Could not copy to clipboard", "error")
+    );
+  };
+
+  const handleDownload = (result) => {
+    const text = `ESTIMA.AI — PREDICTION REPORT
+================================
+Generated: ${new Date(result.timestamp).toLocaleString(CONFIG.LOCALE)}
+
+Property Details
+-----------------
+Area:        ${formatNumber(result.area)} sq.ft
+Bedrooms:    ${result.bedrooms}
+Bathrooms:   ${result.bathrooms}
+Age:         ${result.age} years
+Location:    ${result.location || "Not specified"}
+
+Prediction
+-----------------
+Estimated Price:  ${formatCurrency(result.predicted_price)}
+Category:         ${categoryFor(result.predicted_price).label}
+Price per sq.ft:  ${formatCurrency(Math.round(result.predicted_price / result.area))}
+
+Source: ${result.source === "live" ? "Live ML model" : "Simulated estimate"}
+--------------------------------
+This report is generated for demonstration purposes only and does
+not constitute a professional property valuation.
+`;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `estima-prediction-${result.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    pushToast("Report downloaded", "success");
+  };
+
+  const handleShare = async (result) => {
+    const text = `My Estima.AI estimate: a ${formatNumber(result.area)} sqft property is valued at ${formatCurrency(result.predicted_price)}.`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Estima.AI Prediction", text });
+        pushToast("Shared successfully", "success");
+      } catch {}
+    } else {
+      navigator.clipboard?.writeText(text);
+      pushToast("Share not supported — copied summary instead", "info");
+    }
+  };
+
+  const scrollToPredict = () => {
+    document.getElementById("predict")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <div className={`app theme-${theme}`} data-theme={theme}>
+      <Navbar theme={theme} onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))} onGetStarted={scrollToPredict} />
+      <Hero onGetStarted={scrollToPredict} />
+
+      <section className="section section-predict" id="predict">
+        <div className="section-heading">
+          <span className="section-eyebrow">Estimate</span>
+          <h2>Tell us about the property</h2>
+          <p>Four numbers in, one confident estimate out.</p>
+        </div>
+        <div className="predict-layout">
+          <div className="predict-form-wrap">
+            <PredictionForm onResult={handleResult} onToast={pushToast} />
+          </div>
+          <ResultCard result={currentResult} onCopy={handleCopy} onDownload={handleDownload} onShare={handleShare} />
+        </div>
+      </section>
+
+      <Dashboard history={history} />
+      <ChartsSection history={history} />
+      <HistorySection history={history} onClear={handleClearHistory} onCopy={handleCopy} />
+      <About />
+      <Footer />
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
